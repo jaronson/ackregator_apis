@@ -1,11 +1,17 @@
+import sys
 import httplib
-import xml.dom.minidom
+import ConfigParser
 
-class GunbrokerAPI():
-  dev_key = "10232355-fe17-46dd-a4d1-c3d106e17e82"
-  app_key = "09e1dda2-cf80-43af-aee9-54350d5cb074"
-  username = "samizdat"
-  password = "lu253i"  
+from ..persistence import Model
+
+class Gunbroker():
+  config = ConfigParser.RawConfigParser()
+  config.read("../../config/application.conf")
+  
+  dev_key   = config.get("Gunbroker API", "dev_key")
+  app_key   = config.get("Gunbroker API", "app_key")
+  username  = config.get("Gunbroker API", "username")
+  password  = config.get("Gunbroker API", "password")
 
   def __init__(self):
     self.url = "apiv2.gunbroker.com"
@@ -29,7 +35,11 @@ class GunbrokerAPI():
     # log response.status, response.reason
     data = response.read()
     conn.close()
-    return data
+
+    # Insert the whole response into the database
+    model = Model()
+    model.insertListing("gunbroker", data) 
+    return response.status 
 
   def __buildSoapEnvelope(self, soap_action, options):
     return """<?xml version="1.0" encoding="utf-8"?>
@@ -47,10 +57,10 @@ class GunbrokerAPI():
         <Password>%s</Password>
       </RequesterCredentials>
     </soap:Header>""" % ( self.api_version,
-                          GunbrokerAPI.dev_key, 
-                          GunbrokerAPI.app_key, 
-                          GunbrokerAPI.username, 
-                          GunbrokerAPI.password )
+                          Gunbroker.dev_key, 
+                          Gunbroker.app_key, 
+                          Gunbroker.username, 
+                          Gunbroker.password )
 
   def __buildSoapBody(self, soap_action, options):
     body = "\n\t\t<%sRequest>" % ( soap_action )
